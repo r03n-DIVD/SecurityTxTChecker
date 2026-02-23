@@ -2,36 +2,75 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>security.txt</title>
+    <title>security.txt Inspector</title>
     <style>
-      body { font-family: system-ui, sans-serif; margin: 12px; width: 360px; }
+      body { font-family: system-ui, sans-serif; margin: 12px; width: 420px; }
       .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
       button { padding: 6px 10px; cursor: pointer; }
+      .pill { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+      .ok { background: #e8f5e9; color: #1b5e20; }
+      .warn { background: #fff8e1; color: #e65100; }
+      .fail { background: #ffebee; color: #b71c1c; }
+      .muted { color: #666; font-size: 12px; }
+      .box { background: #f5f5f5; padding: 10px; border-radius: 10px; }
       pre {
         white-space: pre-wrap;
         word-break: break-word;
-        background: #f5f5f5;
+        background: #111;
+        color: #eee;
         padding: 10px;
-        border-radius: 8px;
-        max-height: 280px;
+        border-radius: 10px;
+        max-height: 240px;
         overflow: auto;
       }
-      .muted { color: #666; font-size: 12px; }
-      .ok { color: #2e7d32; font-weight: 700; }
-      .no { color: #b71c1c; font-weight: 700; }
+      table { width: 100%; border-collapse: collapse; }
+      td { padding: 4px 0; vertical-align: top; }
+      .k { width: 140px; color: #444; font-size: 12px; }
+      .v { font-size: 12px; }
+      .attempt { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; padding: 4px 0; border-bottom: 1px solid #e0e0e0; }
+      .attempt:last-child { border-bottom: none; }
       a { color: inherit; }
+      .small { font-size: 12px; }
+      .section { margin-top: 12px; }
+      .issues li { margin: 4px 0; }
+      .fieldlist code { background: #f0f0f0; padding: 2px 6px; border-radius: 8px; }
     </style>
   </head>
   <body>
     <div class="row">
-      <div id="statusText">Checking…</div>
+      <span id="badge" class="pill">…</span>
+      <span id="headline">Checking…</span>
       <button id="recheckBtn">Recheck</button>
+      <button id="copyBtn">Copy</button>
       <button id="optionsBtn">Settings</button>
     </div>
 
-    <div class="muted" id="foundUrl"></div>
+    <div class="muted" id="meta"></div>
 
-    <div style="margin-top: 10px;">
+    <div class="section box">
+      <div class="row" style="justify-content: space-between;">
+        <strong>Score</strong>
+        <span class="small" id="scoreText">—</span>
+      </div>
+      <div class="muted" id="scoreHint"></div>
+      <div style="margin-top: 8px;">
+        <strong>Parsed fields</strong>
+        <div class="fieldlist muted" id="fields">(none)</div>
+      </div>
+    </div>
+
+    <div class="section box">
+      <strong>Issues</strong>
+      <ul class="issues" id="issues"></ul>
+    </div>
+
+    <div class="section">
+      <strong>Attempts</strong>
+      <div class="box" id="attempts">(none)</div>
+    </div>
+
+    <div class="section">
+      <strong>Content</strong>
       <pre id="content">(no content)</pre>
     </div>
 

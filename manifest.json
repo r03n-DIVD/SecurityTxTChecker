@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "security.txt Checker (local)",
-  "version": "1.0.0",
-  "description": "Checks whether the current domain publishes security.txt and lets you view it.",
+  "name": "security.txt Inspector local",
+  "version": "2.0.0",
+  "description": "Security.txt inspector: probes, view, parse, validate, score, and custom endpoints.",
   "action": {
     "default_title": "security.txt",
     "default_popup": "popup.html"
@@ -13,7 +13,5 @@
   "background": {
     "service_worker": "service_worker.js",
     "type": "module"
-  },
-  "icons": {
   }
 }

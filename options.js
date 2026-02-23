@@ -1,4 +1,5 @@
-const STORAGE_KEY = "extraEndpoints";
+const STORAGE_EXTRA_ENDPOINTS = "extraEndpoints";
+const STORAGE_TRY_HTTP = "tryHttpFallback";
 
 function normalizePath(p) {
   let x = String(p || "").trim();
@@ -7,13 +8,20 @@ function normalizePath(p) {
   return x;
 }
 
-async function getExtra() {
-  const { [STORAGE_KEY]: extra } = await chrome.storage.sync.get(STORAGE_KEY);
-  return Array.isArray(extra) ? extra : [];
+async function getAll() {
+  const data = await chrome.storage.sync.get([STORAGE_EXTRA_ENDPOINTS, STORAGE_TRY_HTTP]);
+  return {
+    extra: Array.isArray(data[STORAGE_EXTRA_ENDPOINTS]) ? data[STORAGE_EXTRA_ENDPOINTS] : [],
+    tryHttp: Boolean(data[STORAGE_TRY_HTTP])
+  };
 }
 
 async function setExtra(extra) {
-  await chrome.storage.sync.set({ [STORAGE_KEY]: extra });
+  await chrome.storage.sync.set({ [STORAGE_EXTRA_ENDPOINTS]: extra });
+}
+
+async function setTryHttp(v) {
+  await chrome.storage.sync.set({ [STORAGE_TRY_HTTP]: Boolean(v) });
 }
 
 function render(list) {
@@ -36,8 +44,8 @@ function render(list) {
     const btn = document.createElement("button");
     btn.textContent = "Remove";
     btn.addEventListener("click", async () => {
-      const current = await getExtra();
-      const next = current.filter((x) => x !== ep);
+      const { extra } = await getAll();
+      const next = extra.filter((x) => x !== ep);
       await setExtra(next);
       render(next);
     });
@@ -49,19 +57,27 @@ function render(list) {
 }
 
 async function main() {
-  const current = await getExtra();
-  render(current);
+  const { extra, tryHttp } = await getAll();
+  render(extra.map(normalizePath).filter(Boolean));
+
+  const tryHttpEl = document.getElementById("tryHttp");
+  tryHttpEl.checked = tryHttp;
+  tryHttpEl.addEventListener("change", async () => {
+    await setTryHttp(tryHttpEl.checked);
+  });
 
   document.getElementById("addBtn").addEventListener("click", async () => {
     const input = document.getElementById("endpointInput");
     const ep = normalizePath(input.value);
     if (!ep) return;
 
-    const list = await getExtra();
-    if (!list.includes(ep)) {
-      list.push(ep);
-      await setExtra(list);
-      render(list);
+    const { extra } = await getAll();
+    const normalized = extra.map(normalizePath).filter(Boolean);
+
+    if (!normalized.includes(ep)) {
+      normalized.push(ep);
+      await setExtra(normalized);
+      render(normalized);
     }
     input.value = "";
   });
