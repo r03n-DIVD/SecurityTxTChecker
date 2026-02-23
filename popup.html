@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <title>security.txt Inspector</title>
     <style>
-      body { font-family: system-ui, sans-serif; margin: 12px; width: 420px; }
+      body { font-family: system-ui, sans-serif; margin: 12px; width: 440px; }
       .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
       button { padding: 6px 10px; cursor: pointer; }
       .pill { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
@@ -20,13 +20,9 @@
         color: #eee;
         padding: 10px;
         border-radius: 10px;
-        max-height: 240px;
+        max-height: 220px;
         overflow: auto;
       }
-      table { width: 100%; border-collapse: collapse; }
-      td { padding: 4px 0; vertical-align: top; }
-      .k { width: 140px; color: #444; font-size: 12px; }
-      .v { font-size: 12px; }
       .attempt { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; padding: 4px 0; border-bottom: 1px solid #e0e0e0; }
       .attempt:last-child { border-bottom: none; }
       a { color: inherit; }
@@ -34,6 +30,8 @@
       .section { margin-top: 12px; }
       .issues li { margin: 4px 0; }
       .fieldlist code { background: #f0f0f0; padding: 2px 6px; border-radius: 8px; }
+      .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
     </style>
   </head>
   <body>
@@ -48,6 +46,17 @@
     <div class="muted" id="meta"></div>
 
     <div class="section box">
+      <strong>Quick actions</strong>
+      <div class="grid2" style="margin-top: 8px;">
+        <button id="openContactBtn" disabled>Open Contact</button>
+        <button id="openPolicyBtn" disabled>Open Policy</button>
+        <button id="scanSiteBtn">Find contact on site</button>
+        <button id="openFoundBtn" disabled>Open found file</button>
+      </div>
+      <div class="muted" id="quickHint" style="margin-top: 6px;"></div>
+    </div>
+
+    <div class="section box">
       <div class="row" style="justify-content: space-between;">
         <strong>Score</strong>
         <span class="small" id="scoreText">—</span>
@@ -57,6 +66,12 @@
         <strong>Parsed fields</strong>
         <div class="fieldlist muted" id="fields">(none)</div>
       </div>
+    </div>
+
+    <div class="section box">
+      <strong>Site contacts</strong>
+      <div class="muted" id="siteStatus">(not scanned)</div>
+      <div id="siteResults" class="mono small" style="margin-top: 8px;"></div>
     </div>
 
     <div class="section box">

@@ -5,7 +5,7 @@ const DEFAULT_ENDPOINTS = ["/.well-known/security.txt", "/security.txt"];
 const STORAGE_EXTRA_ENDPOINTS = "extraEndpoints"; // string[]
 const STORAGE_TRY_HTTP = "tryHttpFallback"; // boolean
 
-const TAB_CACHE_KEY_PREFIX = "tabResult:"; // stored in chrome.storage.session
+const TAB_CACHE_KEY_PREFIX = "tabResult:"; // chrome.storage.session
 
 function normalizePath(p) {
   let x = String(p || "").trim();
@@ -34,15 +34,69 @@ function isHttpUrl(url) {
   }
 }
 
-function buildCandidateUrls(tabUrl, endpoints, tryHttpFallback) {
-  const u = new URL(tabUrl);
-  const host = u.hostname;
+// --- (4) Registrable domain fallback (eTLD+1-ish heuristic) ---
+// Real PSL is huge; this is a pragmatic heuristic with common multi-part suffixes.
+const MULTIPART_SUFFIXES = new Set([
+  "co.uk", "org.uk", "ac.uk", "gov.uk",
+  "com.au", "net.au", "org.au",
+  "co.nz", "org.nz",
+  "co.jp", "ne.jp", "or.jp",
+  "com.br", "com.mx",
+  "co.za",
+  "com.sg",
+  "co.in", "net.in", "org.in",
+  "com.tr",
+  "com.ar"
+]);
 
-  const https = endpoints.map((ep) => `https://${host}${ep}`);
+function guessRegistrableDomain(hostname) {
+  // Returns hostname itself if already apex-ish.
+  // For foo.bar.co.uk -> bar.co.uk
+  // For a.b.example.nl -> example.nl
+  const parts = hostname.split(".").filter(Boolean);
+  if (parts.length <= 2) return hostname;
+
+  const last2 = parts.slice(-2).join(".");
+  const last3 = parts.slice(-3).join(".");
+
+  // If ends with multipart suffix, registrable is last 3 labels
+  if (MULTIPART_SUFFIXES.has(last2) && parts.length >= 3) {
+    return parts.slice(-3).join(".");
+  }
+
+  // Otherwise last 2 labels
+  return parts.slice(-2).join(".");
+}
+
+// --- Case-variants for security.txt filename ---
+function expandCaseVariantsForEndpoint(ep) {
+  // If endpoint ends with /.../security.txt (any case), add variants.
+  // Otherwise keep as-is.
+  const m = /(\/)(security\.txt)$/i.exec(ep);
+  if (!m) return [ep];
+
+  const base = ep.replace(/security\.txt$/i, "security.txt");
+  const variants = [
+    base,
+    base.replace(/security\.txt$/i, "Security.txt"),
+    base.replace(/security\.txt$/i, "security.TXT"),
+    base.replace(/security\.txt$/i, "SECURITY.TXT")
+  ];
+
+  // Unique
+  return [...new Set(variants)];
+}
+
+function buildCandidateUrlsForHost(host, endpoints, tryHttpFallback) {
+  const expandedEndpoints = endpoints
+    .flatMap(expandCaseVariantsForEndpoint)
+    .map(normalizePath)
+    .filter(Boolean);
+
+  const https = expandedEndpoints.map((ep) => `https://${host}${ep}`);
   if (!tryHttpFallback) return https;
 
-  // RFC best practice is HTTPS; HTTP fallback is optional (user setting)
-  const http = endpoints.map((ep) => `http://${host}${ep}`);
+  const http = expandedEndpoints.map((ep) => `http://${host}${ep}`);
   return [...https, ...http];
 }
 
@@ -65,8 +119,6 @@ async function fetchWithMeta(url) {
     if (res.ok) {
       meta.ok = true;
       meta.text = await res.text();
-    } else {
-      meta.ok = false;
     }
   } catch (e) {
     meta.error = String(e?.message || e);
@@ -76,8 +128,6 @@ async function fetchWithMeta(url) {
 }
 
 function quickLintState(text) {
-  // ultra-lightweight check for badge: is there at least one "Contact:" line?
-  // Case-insensitive, start of line preferred.
   if (!text) return "warn";
   const hasContact = /^contact\s*:/im.test(text);
   return hasContact ? "ok" : "warn";
@@ -121,30 +171,42 @@ async function probeSecurityTxt(tabUrl) {
     .map(normalizePath)
     .filter(Boolean);
 
-  const candidates = buildCandidateUrls(tabUrl, endpoints, settings.tryHttpFallback);
+  const u = new URL(tabUrl);
+  const host = u.hostname;
+  const apex = guessRegistrableDomain(host);
+
+  // (4) Try host first, then apex if different
+  const hostsToTry = host === apex ? [host] : [host, apex];
 
   const attempts = [];
-  for (const url of candidates) {
-    const meta = await fetchWithMeta(url);
-    attempts.push({
-      url: meta.url,
-      ok: meta.ok,
-      status: meta.status,
-      statusText: meta.statusText,
-      contentType: meta.contentType,
-      error: meta.error
-    });
 
-    if (meta.ok) {
-      // Found first successful one
-      return {
-        found: true,
-        foundUrl: meta.url,
+  for (const h of hostsToTry) {
+    const candidates = buildCandidateUrlsForHost(h, endpoints, settings.tryHttpFallback);
+
+    for (const url of candidates) {
+      const meta = await fetchWithMeta(url);
+
+      attempts.push({
+        url: meta.url,
+        ok: meta.ok,
         status: meta.status,
+        statusText: meta.statusText,
         contentType: meta.contentType,
-        text: meta.text,
-        attempts
-      };
+        error: meta.error
+      });
+
+      if (meta.ok) {
+        return {
+          found: true,
+          foundUrl: meta.url,
+          status: meta.status,
+          contentType: meta.contentType,
+          text: meta.text,
+          attempts,
+          checkedHost: h,
+          checkedHostMode: h === host ? "host" : "apex"
+        };
+      }
     }
   }
 
@@ -154,7 +216,9 @@ async function probeSecurityTxt(tabUrl) {
     status: null,
     contentType: null,
     text: null,
-    attempts
+    attempts,
+    checkedHost: host,
+    checkedHostMode: "host"
   };
 }
 
@@ -195,14 +259,10 @@ async function checkTab(tabId, tabUrl) {
   }
 }
 
-// Re-check when tab finishes loading or URL changes
+// Tab listeners
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === "complete" && tab?.url) {
-    checkTab(tabId, tab.url);
-  }
-  if (changeInfo.url) {
-    checkTab(tabId, changeInfo.url);
-  }
+  if (changeInfo.status === "complete" && tab?.url) checkTab(tabId, tab.url);
+  if (changeInfo.url) checkTab(tabId, changeInfo.url);
 });
 
 chrome.tabs.onActivated.addListener(async ({ tabId }) => {
@@ -210,6 +270,7 @@ chrome.tabs.onActivated.addListener(async ({ tabId }) => {
   if (tab?.url) checkTab(tabId, tab.url);
 });
 
+// Messages for popup
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async () => {
     if (msg?.type === "GET_TAB_RESULT") {
