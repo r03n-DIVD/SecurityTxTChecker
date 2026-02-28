@@ -3,36 +3,151 @@
   <head>
     <meta charset="utf-8" />
     <title>security.txt Inspector</title>
-    <style>
-      body { font-family: system-ui, sans-serif; margin: 12px; width: 440px; }
-      .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-      button { padding: 6px 10px; cursor: pointer; }
-      .pill { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
-      .ok { background: #e8f5e9; color: #1b5e20; }
-      .warn { background: #fff8e1; color: #e65100; }
-      .fail { background: #ffebee; color: #b71c1c; }
-      .muted { color: #666; font-size: 12px; }
-      .box { background: #f5f5f5; padding: 10px; border-radius: 10px; }
-      pre {
-        white-space: pre-wrap;
-        word-break: break-word;
-        background: #111;
-        color: #eee;
-        padding: 10px;
-        border-radius: 10px;
-        max-height: 220px;
-        overflow: auto;
-      }
-      .attempt { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; padding: 4px 0; border-bottom: 1px solid #e0e0e0; }
-      .attempt:last-child { border-bottom: none; }
-      a { color: inherit; }
-      .small { font-size: 12px; }
-      .section { margin-top: 12px; }
-      .issues li { margin: 4px 0; }
-      .fieldlist code { background: #f0f0f0; padding: 2px 6px; border-radius: 8px; }
-      .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-    </style>
+<style>
+  :root{
+    --mxbt-bg:#282a37;
+    --mxbt-panel:#2f3243;
+    --mxbt-panel2:#303243;
+    --mxbt-border:#4e5165;
+    --mxbt-border2:#282a37;
+    --mxbt-text:#9295a2;
+    --mxbt-text-strong:#e6e6ea;
+    --mxbt-white:#fff;
+    --mxbt-accent:#84ba3f;
+    --mxbt-warn:#ffb37c;
+    --mxbt-danger:#e22e2e;
+    --mxbt-shadow:1px 1px 15px rgba(22,23,33,.4);
+  }
+
+  *{ box-sizing:border-box; }
+  body{
+    font-family: system-ui, sans-serif;
+    margin: 12px;
+    width: 440px;
+    background: var(--mxbt-bg);
+    color: var(--mxbt-text);
+  }
+
+  a{ color: inherit; }
+
+  .row{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+
+  /* Buttons */
+  button{
+    padding: 6px 10px;
+    cursor: pointer;
+    background: transparent;
+    border: 2px solid var(--mxbt-accent);
+    color: var(--mxbt-accent);
+    border-radius: 3px;
+    transition: all .2s ease-in-out;
+    font-weight: 600;
+  }
+  button:hover{
+    background: var(--mxbt-accent);
+    color: var(--mxbt-white);
+  }
+  button:disabled{
+    opacity:.45;
+    cursor:not-allowed;
+    border-color: rgba(132,186,63,.35);
+    color: rgba(132,186,63,.55);
+  }
+
+  /* Pills */
+  .pill{
+    padding:2px 10px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:800;
+    border:1px solid var(--mxbt-border);
+    background: var(--mxbt-panel);
+    color: var(--mxbt-text-strong);
+  }
+  .ok{
+    border-color: rgba(132,186,63,.65);
+    color: var(--mxbt-accent);
+    background: rgba(132,186,63,.08);
+  }
+  .warn{
+    border-color: rgba(255,179,124,.65);
+    color: rgba(255,179,124,.95);
+    background: rgba(255,179,124,.08);
+  }
+  .fail{
+    border-color: rgba(226,46,46,.65);
+    color: rgba(226,46,46,.95);
+    background: rgba(226,46,46,.08);
+  }
+
+  .muted{
+    color: rgba(146,149,162,.75);
+    font-size: 12px;
+    margin-top: 6px;
+  }
+
+  /* Sections */
+  .section{ margin-top: 12px; }
+
+  .box{
+    background: var(--mxbt-panel);
+    padding: 12px;
+    border-radius: 0;
+    border: 1px solid var(--mxbt-border2);
+    box-shadow: var(--mxbt-shadow);
+  }
+
+  .grid2{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .small{ font-size: 12px; }
+
+  .issues li{ margin: 6px 0; }
+
+  .fieldlist code{
+    background: rgba(0,0,0,0);
+    border: 1px solid var(--mxbt-border);
+    padding: 2px 6px;
+    border-radius: 8px;
+    color: var(--mxbt-text-strong);
+  }
+
+  .mono{
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  /* Attempts box */
+  .attempt{
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+    font-size:12px;
+    padding:6px 0;
+    border-bottom:1px solid rgba(78,81,101,.45);
+  }
+  .attempt:last-child{ border-bottom:none; }
+
+  /* Content viewer */
+  pre{
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: rgba(0,0,0,.70);
+    color: var(--mxbt-white);
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid rgba(78,81,101,.45);
+    max-height: 220px;
+    overflow: auto;
+  }
+</style>
   </head>
   <body>
     <div class="row">
